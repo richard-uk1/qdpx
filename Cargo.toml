@@ -1,0 +1,18 @@
+[package]
+name = "qdpx"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+zip = "0.5.13"
+thiserror = "1.0.30"
+quick-xml = "0.22.0"
+
+[dev-dependencies]
+qu = "0.3.0"
+structopt = "0.3.25"
+
+[profile.dev]
+opt-level = 3
