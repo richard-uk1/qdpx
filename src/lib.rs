@@ -1,35 +1,30 @@
 use quick_xml::{events::Event, Reader};
 use std::{
     fs::File,
-    io::{self, BufReader, Read, Seek},
+    io::{self, BufRead as _, BufReader, Read, Seek},
     path::{Path, PathBuf},
 };
 use thiserror::Error;
 use zip::ZipArchive;
+
+mod xml;
+
+pub type Result<T = (), E = Error> = std::result::Result<T, E>;
 
 pub struct Qdpx<R> {
     archive: ZipArchive<R>,
 }
 
 impl Qdpx<File> {
-    pub fn open(filename: impl AsRef<Path>) -> Result<Self, Error> {
+    pub fn open(filename: impl AsRef<Path>) -> Result<Self> {
         let filename = filename.as_ref();
         let file = File::open(filename).map_err(|e| Error::OpeningFile {
             filename: filename.to_owned(),
             source: e,
         })?;
         let mut archive = ZipArchive::new(file)?;
-        let project = archive.by_name("project.qde")?;
-        let mut xml = Reader::from_reader(BufReader::new(project));
-        let mut xml_buf = Vec::new();
-        loop {
-            let event = xml.read_event(&mut xml_buf)?;
-            if matches!(event, Event::Eof) {
-                break;
-            }
-            println!("{:?}", event);
-        }
-        drop(xml);
+        let project = BufReader::new(archive.by_name("project.qde")?);
+        let project = xml::Project::from_xml(Reader::from_reader(project))?;
         Ok(Qdpx { archive })
     }
 }
@@ -54,6 +49,31 @@ pub enum Error {
         #[from]
         #[source]
         quick_xml::Error,
+    ),
+    #[error("qdpx file corrupt")]
+    Uuid(
+        #[from]
+        #[source]
+        uuid::Error,
+    ),
+    #[error("qdpx file corrupt")]
+    DateTime(
+        #[from]
+        #[source]
+        chrono::format::ParseError,
+    ),
+    // this is errors I'm too lazy to manage properly. it should disappear eventually
+    #[error("uncategorised")]
+    Uncategorised(
+        #[from]
+        #[source]
+        anyhow::Error,
+    ),
+    #[error("encoding error")]
+    Utf8(
+        #[from]
+        #[source]
+        std::str::Utf8Error,
     ),
     #[error("integer conversion failed")]
     IntegerConversion,
